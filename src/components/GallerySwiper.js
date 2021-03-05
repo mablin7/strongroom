@@ -19,7 +19,7 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
     const scrollX = nativeEvent.contentOffset.x
     if (scrollX % width === 0) {
       const newIdx = Math.round(scrollX/width)
-      onScroll(itemsList[newIdx])
+      onScroll(itemsList[newIdx].uuid)
       setCurrentItem(newIdx)
     }
   }
