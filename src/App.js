@@ -1,21 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 
-import { createStore, Provider, connect } from 'unistore/full/react'
-
-import { defaultStore, actions } from './vaultStore'
-import { isVaultOpen } from './utils/store-utils'
 import Unlock from './screens/Unlock'
 import Vault from './screens/Vault'
+import {DEFAULT_VAULT} from './utils/constants'
 
-const store = createStore(defaultStore)
-
-const App = connect(['vaultKey', 'items', 'manifest'], actions)(({ vaultKey, items, manifest }) => {   
-  const vaultOpen = isVaultOpen({ vaultKey, items, manifest })
+export default () => {   
+  const [vault, setVault] = useState(undefined)
 
   return (
-    vaultOpen ? <Vault/> : <Unlock/>
+    vault === undefined ? <Unlock vaultPath={DEFAULT_VAULT} onVaultOpen={setVault}/> : <Vault initialVault={vault}/>
   )
-})
+}
 
-
-export default () => (<Provider store={store}><App/></Provider>)
