@@ -1,7 +1,9 @@
 import React  from 'react'
-import { View, StyleSheet, Image, Pressable, useWindowDimensions } from 'react-native'
+import { View, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native'
 
-export default ({ data, minNCols=3, maxItemWidth=200, margin=2, onItemPress=undefined }) => {
+import { ItemViewThumbnail } from './ItemView'
+
+export default ({ itemsList, minNCols=3, maxItemWidth=200, margin=2, onItemPress=undefined }) => {
   const _onItemPress = onItemPress || (()=>{})
   const {width} = useWindowDimensions()
   const nCols = Math.floor(width/minNCols) > maxItemWidth ? Math.floor(width/maxItemWidth) : minNCols
@@ -10,10 +12,10 @@ export default ({ data, minNCols=3, maxItemWidth=200, margin=2, onItemPress=unde
   return (
     <ScrollView>
       <View style={styles.gridContainer}>
-        {data.map((src, idx) => (
-          <Pressable key={idx} onPress={() => _onItemPress(idx)}>
+        {itemsList.map(item => (
+          <Pressable key={item.uuid} onPress={() => _onItemPress(item.uuid)}>
             <View style={{ width: itemSize, height: itemSize, margin }}>
-              <Image source={src} style={styles.thumb}/>
+              <ItemViewThumbnail item={item}/>
             </View>
           </Pressable>
         ))}
