@@ -2,5 +2,5 @@ import { NativeModules } from 'react-native'
 
 const { MediaDeleter } = NativeModules
 
-export const deleteMediaFile = uri => MediaDeleter.deleteMedia([uri])
+export const deleteMediaFiles = uris => MediaDeleter.deleteMedia(uris)
 
