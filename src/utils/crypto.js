@@ -11,7 +11,7 @@ export const getKey = (password, salt) => Aes.pbkdf2(password, salt+PEPPER, COST
 
 export const decrypt = async ({ cipher, iv, hmac }, key) => {
     const newHmac = await Aes.hmac256(cipher+iv, key)
-    if (newHmac !== hmac) throw 'Decryption failed'
+    if (newHmac !== hmac) return
     const decrypted = await Aes.decrypt(cipher, key, iv)
     return decrypted
 }
