@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import { View, StyleSheet, Text } from 'react-native'
 
-import openVault from '../vault/openVault'
+import { openVault } from '../vault'
 import { BG_COLOR } from '../utils/constants'
 import { vaultExists } from '../utils/vaultFile'
 
