@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, Button } from 'react-native'
+import DocumentPicker from 'react-native-document-picker'
 
 import { useVault } from '../vault'
 
@@ -13,9 +14,18 @@ export default ({ initialVault }) => {
   const [isImporting, setIsImporting] = useState(false)
   const onAddBtnPress = async () => {
     setIsImporting(true)
-    await importFiles()
-    setIsImporting(false)
+    try {
+      const results = await DocumentPicker.pickMultiple({
+        type: DocumentPicker.types.images
+      })
+      await importFiles(results)
+      setIsImporting(false)
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) setIsImporting(false)
+      else throw err
+    }
   }
+
   const [viewerPage, openViewerAt] = useState(-1)
   const onItemPress = pressedUUID => openViewerAt(itemsList.findIndex(({uuid}) => pressedUUID === uuid))
   
