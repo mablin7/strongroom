@@ -1,25 +1,33 @@
-import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import React, {useEffect, useState} from 'react'
+import { View, StyleSheet, Text } from 'react-native'
 
-import { connect } from 'unistore/full/react'
-
-import { actions } from '../vaultStore'
-import { DEFAULT_VAULT, BG_COLOR } from '../utils/constants'
+import openVault from '../vault/openVault'
+import { BG_COLOR } from '../utils/constants'
+import { vaultExists } from '../utils/vaultFile'
 
 import CreateVault from '../components/UnlockCreateVault'
 
-export default connect(['vaultExists'], actions)(({ vaultExists, checkVault }) => {
+export default ({ vaultPath, onVaultOpen }) => {
+  const [createNewVault, setCreateNewVault] = useState(undefined)
+  useEffect(() => {
+    vaultExists(vaultPath).then(exists => setCreateNewVault(!exists))
+  }, [vaultPath])
+
+  const onDone = async password => {
+    onVaultOpen(await openVault(vaultPath, password))
+  }
+
   let screen
-  if (vaultExists === undefined) checkVault(DEFAULT_VAULT)
-  else if (vaultExists === false) screen = <CreateVault/>
+  if (createNewVault === true) screen = <CreateVault onDone={onDone}/>
   // TODO: unlock screen if vault exists
+  else if (createNewVault === false) screen = <Text>Unlock screen</Text>
 
     return (
       <View style={styles.container}>
         {screen}
       </View>
     )
-})
+}
 
 const styles = StyleSheet.create({
   container: {

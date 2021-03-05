@@ -4,18 +4,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
 import { faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
 import { useBackHandler } from '@react-native-community/hooks'
 
-import { connect } from 'unistore/full/react'
-
-import { actions } from '../vaultStore'
 import generatePassword from '../utils/generatePassword'
-import { DEFAULT_VAULT } from '../utils/constants'
 import globalStyles from '../utils/styles'
 import IntroSlide from './IntroSlide'
 
 const WARNING_COLOR = '#ECC30B'
 const STATES = { INTRO:1, SELECTING:2, PRACTICE:3 }
 
-export default connect('', actions)(({ openVault }) => {
+export default ({ onDone }) => {
     const [currentPasswd, setPasswd] = useState(generatePassword())
     const [state, setState] = useState(STATES.INTRO)
     const [newPage, jumpToPage] = useState(0)
@@ -32,7 +28,7 @@ export default connect('', actions)(({ openVault }) => {
     }
 
     const onPwdSubmit = () => {
-        if (practicePwd === currentPasswd) openVault(DEFAULT_VAULT, currentPasswd)
+        if (practicePwd === currentPasswd) onDone(currentPasswd)
         else jumpToPage(2)
     }
     
@@ -80,7 +76,7 @@ export default connect('', actions)(({ openVault }) => {
             </IntroSlide>
         </View>
     )
-})
+}
 
 const styles = StyleSheet.create({
     warningTextContainer: {
