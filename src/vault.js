@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Image } from 'react-native'
 
 import RNFS from 'react-native-fs'
 import ImageResizer from 'react-native-image-resizer'
@@ -20,6 +21,7 @@ import { getKey, decrypt, encrypt, getUUID, getSalt } from './utils/crypto'
 //   }
 // }
 
+const getImgSize = uri => new Promise(res => Image.getSize(uri, (width, height) => res({ width, height })))
 async function importDataFromFile({ name, type, uri }) {
   if (typeof type !== 'string') {
     if (name.endsWith('.png')) type = 'image/png'
@@ -28,10 +30,11 @@ async function importDataFromFile({ name, type, uri }) {
   }
   if (type.startsWith('image/')) {
     const data = `data:${type};base64, ${await RNFS.readFile(uri, 'base64')}`
+    const size = await getImgSize(data)
     const { uri: thumbnailUri } = await ImageResizer.createResizedImage(data, THUMBNAIL_SIZE, THUMBNAIL_SIZE, 'JPEG', 100)
     const thumbnailData = `data:image=jpeg;base64, ${await RNFS.readFile(thumbnailUri, 'base64')}`
     await RNFS.unlink(thumbnailUri)
-    return { type, data, thumbnail: thumbnailData }
+    return { type, data, thumbnail: thumbnailData, size }
   }
   else throw new Error('Unknown file type! ' + name + ' ' + type)
 }

@@ -1,15 +1,32 @@
 import React  from 'react'
-import { StyleSheet, Image } from 'react-native'
+import { StyleSheet, Image, View } from 'react-native'
 
 const Placeholder = () => (
   <View style={styles.placeholder}/>
 )
 
-export const ItemViewFull = ({ item: { type, data } }) => {
+function ItemViewFull_({ item: { type, data, size }, width: viewWidth, height: viewHeight }) {
   if (data === undefined) return <Placeholder/>
-  else if (type.startsWith('image/')) return <Image style={StyleSheet.absoluteFill} source={{ uri: data }} resizeMode="contain"/>
-  else throw new Error('Unkown item type!')
+  else if (type.startsWith('image/')) {
+    const { width, height } = size
+    const containedDims = { width: 0, height: 0 }
+    if (width !== 0 && height !== 0) {
+      if (width > height) {
+        containedDims.width = viewWidth
+        containedDims.height = (viewWidth / width) * height
+      } else {
+        containedDims.height = viewHeight
+        containedDims.width = (viewHeight / height) * width
+      }
+    }
+    return <Image style={containedDims} source={{ uri: data }}/>
+  }
+  throw new Error('Unkown item type ' + type + '!')
 }
+function areEqual({ item: prevItem }, { item: newItem }) {
+  return prevItem.type === newItem.type && prevItem.data === newItem.data
+}
+export const ItemViewFull = React.memo(ItemViewFull_, areEqual)
 
 export const ItemViewThumbnail = ({ item }) => {
   const { type } = item

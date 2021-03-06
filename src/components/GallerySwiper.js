@@ -100,13 +100,18 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
           disableIntervalMomentum
         >
           <Animated.View style={{ width: width*itemsList.length, height, flexDirection: 'row' }}>
-            {itemsList.map((item, idx) => ( currentItem === idx ?
-              <Animated.View key={item.uuid} style={[styles.viewImage, { width }, animatedTransform]}>
-                <ItemViewFull item={item}/>
-              </Animated.View>
-              :
-              <View key={item.uuid} style={[styles.viewImage, { width }]}>
-                <ItemViewFull item={item}/>
+            {itemsList.map((item, idx) => (
+              <View key={item.uuid}>
+                {
+                  currentItem === idx ?
+                    <Animated.View style={[styles.viewImage, { width }, animatedTransform]}>
+                      <ItemViewFull item={item} width={width} height={height}/>
+                    </Animated.View>
+                    :
+                    <View style={[styles.viewImage, { width }]}>
+                      <ItemViewFull item={item} width={width} height={height}/>
+                    </View>
+                }
               </View>
             ))}
           </Animated.View>
@@ -119,6 +124,9 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
 const styles = StyleSheet.create({
   viewImage: {
     width: '100%',
-    height: '100%'
+    height: '100%',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
 })
