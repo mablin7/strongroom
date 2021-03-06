@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native'
 import { PinchGestureHandler, State, ScrollView } from 'react-native-gesture-handler'
 
@@ -16,13 +16,17 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
 
   const [currentItem, setCurrentItem] = useState(startIdx)
   const _onScroll = ({ nativeEvent }) => {
-    const scrollX = nativeEvent.contentOffset.x
-    if (scrollX % width === 0) {
+    const scrollX = Math.ceil(nativeEvent.contentOffset.x)
+    if (scrollX % Math.round(width) === 0) {
       const newIdx = Math.round(scrollX/width)
       onScroll(itemsList[newIdx].uuid)
       setCurrentItem(newIdx)
     }
   }
+  useEffect(() => {
+    // If starting at 0 _onScroll event is not called, so the image doesn't get decrypted
+    if (startIdx === 0) onScroll(itemsList[0].uuid)
+  }, [])
 
   const pinchScale = useRef(new Animated.Value(1)).current
   const onPinchGestureEvent = Animated.event([{
