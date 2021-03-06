@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, Button } from 'react-native'
 import DocumentPicker from 'react-native-document-picker'
+import { useBackHandler } from '@react-native-community/hooks'
 
 import { useVault } from '../vault'
 
@@ -28,6 +29,12 @@ export default ({ initialVault }) => {
 
   const [viewerPage, openViewerAt] = useState(-1)
   const onItemPress = pressedUUID => openViewerAt(itemsList.findIndex(({uuid}) => pressedUUID === uuid))
+  useBackHandler(() => {
+    if (viewerPage !== -1) {
+      openViewerAt(-1)
+      return true
+    } else return false
+  })
   
   return (
     <View style={styles.container}>
