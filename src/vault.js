@@ -78,6 +78,11 @@ export function useVault(initialVault) {
   const [items, setItems] = useState(initialVault.items)
   const encrypted = useRef(initialVault.encrypted).current
 
+  const currentlyDecrypting = useRef({}).current
+  useEffect(() => {
+    Object.keys(items).forEach(uuid => currentlyDecrypting[uuid] = false)
+  }, [])
+
   const importFiles = async pickedFiles => {
     const newItems = { ...items }
     const newEncryptedItems = { ...encrypted.items }
@@ -107,11 +112,13 @@ export function useVault(initialVault) {
 
   const decryptItem = async uuid => {
     const { data } = items[uuid]
-    if (data !== undefined) return
+    if (data !== undefined || currentlyDecrypting[uuid]) return
 
+    currentlyDecrypting[uuid] = true
     const decryptedItem = await decrypt(encrypted.dataItems[uuid], key)
     const newItems = { ...items, [uuid]: { ...items[uuid], data: decryptedItem } }
     setItems(newItems)
+    currentlyDecrypting[uuid] = false
   }
 
   return {
