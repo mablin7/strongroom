@@ -7,7 +7,7 @@ import globalStyles from '../utils/styles'
 import { vaultExists } from '../utils/vaultFile'
 
 import PasswordInput from '../components/PasswordInput'
-import CreateVault from '../components/UnlockCreateVault'
+import CreateVault from './CreateNewVault'
 
 export default ({ vaultPath, onVaultOpen }) => {
   const [createNewVault, setCreateNewVault] = useState(undefined)
