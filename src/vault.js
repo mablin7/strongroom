@@ -48,10 +48,11 @@ export async function openVault(vaultPath, password) {
     if (await vaultExists(vaultPath)) {
       const encrypted = await readVaultFile(vaultPath)
       const vaultKey = await getKey(password, encrypted.salt)
-      const manifestDecrypted = await decrypt(encrypted.manifest, vaultKey)
-      if (manifestDecrypted === undefined) return
+      const challengeDecrypted = await decrypt(encrypted.challenge, vaultKey)
+      if (challengeDecrypted === undefined) return
 
-      const items = JSON.parse(manifestDecrypted)
+      const manifestDecrypted = await decrypt(encrypted.manifest, vaultKey)
+      const items = manifestDecrypted === undefined ? {} : JSON.parse(manifestDecrypted)
       return {
         path: vaultPath,
         key: vaultKey,
@@ -60,8 +61,9 @@ export async function openVault(vaultPath, password) {
     } else {
       const salt = getSalt()
       const vaultKey = await getKey(password, salt)
+      const challenge = await encrypt('test', vaultKey)
       const encrypted = {
-        salt, dataItems: {}, manifest: {cipher: '', iv: '', hmac: ''}
+        salt, dataItems: {}, manifest: {cipher: '', iv: '', hmac: ''}, challenge
       }
 
       return {
