@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, Animated } from 'react-native'
 import globalStyles from '../utils/styles'
 import { BG_COLOR, TEXT_COLOR } from '../utils/constants'
 
-export default ({ title, onPress, hidden=false }) => {
+export default ({ title, onPress, hidden=false, style={}, backgroundColor=BG_COLOR }) => {
   const opacity = useRef(new Animated.Value(hidden ? 0 : 1)).current
   const [currentlyHidden, setCurrentlyHidden] = useState(hidden)
   if (currentlyHidden !== hidden) {
@@ -21,9 +21,10 @@ export default ({ title, onPress, hidden=false }) => {
           {
             backgroundColor: pressed
               ? 'rgba(255, 255, 255, 119)'
-              : BG_COLOR
+              : backgroundColor
           },
           styles.button,
+          style
         ]}
       >
         {
@@ -46,8 +47,8 @@ const styles = StyleSheet.create({
     borderColor: TEXT_COLOR,
     borderWidth: 1,
     borderRadius: 10,
-    padding: 10,
-    marginTop: 20
+    paddingHorizontal: 20,
+    paddingVertical: 15
   }
 })
 
