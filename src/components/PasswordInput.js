@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { StyleSheet, TextInput } from 'react-native'
 
 import CustomButton from './CustomButton'
@@ -19,21 +19,13 @@ const normalizeText = text => {
   return lower
 }
 
-export default ({ btnTitle='Submit', onDone }) => {
+export default React.forwardRef(({ btnTitle='Submit', autoFocus=true, clear=false, style={}, onDone }, ref) => {
   const [value, setValue] = useState('')
   const [failed, setFailed] = useState(false)
   const onChangeText = text => {
     if (failed) setFailed(false)
     if (text.endsWith(' ')) text = normalizeText(text)
     setValue(text)
-  }
-
-  const [height, setHeight] = useState(0)
-  const [startingHeight, setStartingHeight] = useState(1)
-  const onContentSizeChange = ({ nativeEvent: { contentSize: { height } } }) => {
-    height -= VERTICAL_PADDING * 2
-    if (startingHeight === 1) setStartingHeight(height)
-    setHeight(height)
   }
 
   const _onDone = async text => {
@@ -45,18 +37,22 @@ export default ({ btnTitle='Submit', onDone }) => {
     }
   }
 
+  useEffect(() => {
+    if(clear) setValue('')
+  }, [clear])
+
   return (
     <>
       <TextInput
+        ref={ref}
         autoCapitalize="none"
         autoCorrect={false}
         autoCompleteType="off"
-        autoFocus
+        autoFocus={autoFocus}
         keyboardType="visible-password"
-        style={[styles.passwordInput, failed && styles.passwordInputFailed]}
+        style={[styles.passwordInput, failed && styles.passwordInputFailed, style]}
         multiline
-        numberOfLines={Math.max(1, Math.ceil(height / startingHeight))}
-        onContentSizeChange={onContentSizeChange}
+        numberOfLines={2}
         onChangeText={text => onChangeText(text)}
         onSubmitEditing={({ nativeEvent: { text } }) => isPwdValid(text) && _onDone(text)}
         value={value}
@@ -67,7 +63,7 @@ export default ({ btnTitle='Submit', onDone }) => {
       <CustomButton title={btnTitle} hidden={!isPwdValid(value) || failed} onPress={() => _onDone(value)}/>
     </>
   )
-}
+})
 
 const styles = StyleSheet.create({
   passwordInput: {
@@ -76,7 +72,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: VERTICAL_PADDING,
-    width: '95%'
+    width: '95%',
+    marginBottom: 15
   },
   passwordInputFailed: {
     borderColor: FAILURE_COLOR,
