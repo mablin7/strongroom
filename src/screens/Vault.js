@@ -12,11 +12,9 @@ export default ({ initialVault, setShouldLockOnBg }) => {
   const { items, decryptItem, importFiles } = useVault(initialVault)
   const itemsList = Object.keys(items).sort().map(uuid => ({ uuid, ...items[uuid] }))
 
-  const [isImporting, _setIsImporting] = useState(false)
   const setIsImporting = v => {
     if (v) setShouldLockOnBg(false)
     else setTimeout(() => setShouldLockOnBg(true), 100)
-    _setIsImporting(v)
   }
   const onAddBtnPress = async () => {
     setIsImporting(true)
@@ -43,9 +41,12 @@ export default ({ initialVault, setShouldLockOnBg }) => {
   
   return (
     <View style={styles.container}>
-      { (viewerPage === -1 && !isImporting) && <GridView itemsList={itemsList} onItemPress={onItemPress}/> }
-      { (viewerPage !== -1 && !isImporting) && <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/> }
-      { !isImporting && <Button style={styles.fab} title="Import Files" onPress={onAddBtnPress}/> }
+      {
+        viewerPage === -1
+          ? <GridView itemsList={itemsList} onItemPress={onItemPress}/>
+          : <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/>
+      }
+      <Button style={styles.fab} title="Import Files" onPress={onAddBtnPress}/>
     </View>
 
   )
