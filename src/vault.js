@@ -31,10 +31,12 @@ async function importDataFromFile({ name, type, uri }) {
   if (type.startsWith('image/')) {
     const data = `data:${type};base64, ${await RNFS.readFile(uri, 'base64')}`
     const size = await getImgSize(data)
-    const { uri: thumbnailUri } = await ImageResizer.createResizedImage(data, THUMBNAIL_SIZE, THUMBNAIL_SIZE, 'JPEG', 100)
-    const thumbnailData = `data:image=jpeg;base64, ${await RNFS.readFile(thumbnailUri, 'base64')}`
-    await RNFS.unlink(thumbnailUri)
-    return { type, data, thumbnail: thumbnailData, size }
+    if (type === 'image/jpeg' || type === 'image/png') {
+      const { uri: thumbnailUri } = await ImageResizer.createResizedImage(data, THUMBNAIL_SIZE, THUMBNAIL_SIZE, 'JPEG', 100)
+      const thumbnailData = `data:image=jpeg;base64, ${await RNFS.readFile(thumbnailUri, 'base64')}`
+      await RNFS.unlink(thumbnailUri)
+      return { type, data, thumbnail: thumbnailData, size }
+    } else return { type, data, size }
   }
   else throw new Error('Unknown file type! ' + name + ' ' + type)
 }
@@ -65,6 +67,7 @@ export async function openVault(vaultPath, password) {
       const encrypted = {
         salt, dataItems: {}, manifest: {cipher: '', iv: '', hmac: ''}, challenge
       }
+      await saveVaultFile(vaultPath, encrypted)
 
       return {
         path: vaultPath,
@@ -78,7 +81,7 @@ export async function openVault(vaultPath, password) {
 /**
  * Hook that keeps track of the vault, decrypts files, encrypts and saves changes.
 */
-export function useVault(initialVault) {
+export function useVault(initialVault={}) {
   const { key, path } = initialVault
   const [items, setItems] = useState(initialVault.items)
   const encrypted = useRef(initialVault.encrypted).current
