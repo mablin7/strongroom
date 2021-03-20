@@ -9,7 +9,7 @@ const VERTICAL_PADDING = 10
 
 const isPwdValid = pwd => {
   const words = pwd.split(/ +/g)
-  return words.length === 4 && words.every(w => w.length > 2)
+  return words.length === 4 && words.every(w => w.length >= 2)
 }
 
 const normalizeText = text => {
