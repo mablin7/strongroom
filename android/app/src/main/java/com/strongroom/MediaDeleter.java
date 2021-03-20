@@ -79,7 +79,7 @@ public class MediaDeleter extends ReactContextBaseJavaModule implements Activity
         } else if (uris.size() == 0) {
             promise.reject(ERROR_INVALID_ARGS, "Need at least one URI to delete");
         } else {
-            mCurrentPromise = promise;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) mCurrentPromise = promise;
             new DeletePhotos(new WeakReference<>(getReactApplicationContext()), new WeakReference<>(getCurrentActivity()), uris, promise)
                     .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
