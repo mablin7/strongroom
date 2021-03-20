@@ -8,11 +8,16 @@ import { useVault } from '../vault'
 import GridView from '../components/GridView'
 import GallerySwiper from '../components/GallerySwiper'
 
-export default ({ initialVault }) => {
+export default ({ initialVault, setShouldLockOnBg }) => {
   const { items, decryptItem, importFiles } = useVault(initialVault)
   const itemsList = Object.keys(items).sort().map(uuid => ({ uuid, ...items[uuid] }))
 
-  const [isImporting, setIsImporting] = useState(false)
+  const [isImporting, _setIsImporting] = useState(false)
+  const setIsImporting = v => {
+    if (v) setShouldLockOnBg(false)
+    else setTimeout(() => setShouldLockOnBg(true), 100)
+    _setIsImporting(v)
+  }
   const onAddBtnPress = async () => {
     setIsImporting(true)
     try {
