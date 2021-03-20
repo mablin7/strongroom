@@ -30,7 +30,10 @@ export const ItemViewFull = React.memo(ItemViewFull_, areEqual)
 
 export const ItemViewThumbnail = ({ item }) => {
   const { type } = item
-  if (type.startsWith('image/')) return <Image style={styles.thumbnail} source={{ uri: item.thumbnail }}/>
+  if (type.startsWith('image/')) {
+    if (item.thumbnail !== undefined) return <Image style={styles.thumbnail} source={{ uri: item.thumbnail }}/>
+      return <View style={[styles.thumbnail, { backgroundColor: 'gray' }]}/>
+  }
   else throw new Error('Unkown item type!')
 }
 
