@@ -93,7 +93,7 @@ export function useVault(initialVault={}) {
 
   const importFiles = async pickedFiles => {
     const newItems = { ...items }
-    const newEncryptedItems = { ...encrypted.items }
+    const newEncryptedItems = { ...encrypted.dataItems }
     for (let res of pickedFiles) {
       const newUUID = await getUUID()
       const { data, ...metadata } = await importDataFromFile(res)
