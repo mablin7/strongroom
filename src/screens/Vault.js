@@ -1,12 +1,39 @@
 import React, { useState } from 'react'
-import { View, StyleSheet, Button } from 'react-native'
+import { View, StyleSheet, Button, Pressable } from 'react-native'
 import DocumentPicker from 'react-native-document-picker'
 import { useBackHandler } from '@react-native-community/hooks'
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
+import { faPlus } from '@fortawesome/free-solid-svg-icons'
 
 import { useVault } from '../vault'
+import { BG_COLOR } from '../utils/constants'
+import globalStyles from '../utils/styles'
 
 import GridView from '../components/GridView'
 import GallerySwiper from '../components/GallerySwiper'
+
+function ImportButton({ onPress }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        {
+          backgroundColor: pressed
+            ? BG_COLOR
+            : BG_COLOR
+        },
+        styles.fab,
+      ]}
+      android_ripple={{
+        color: 'rgba(255, 255, 255, 0.3)',
+        borderless: false,
+        radius: 30
+      }}
+      onPress={onPress}
+    >
+      <FontAwesomeIcon size={30} color="#273353" icon={faPlus}/>
+    </Pressable>
+  )
+}
 
 export default ({ initialVault, setShouldLockOnBg }) => {
   const { items, decryptItem, importFiles } = useVault(initialVault)
@@ -46,7 +73,7 @@ export default ({ initialVault, setShouldLockOnBg }) => {
           ? <GridView itemsList={itemsList} onItemPress={onItemPress}/>
           : <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/>
       }
-      <Button style={styles.fab} title="Import Files" onPress={onAddBtnPress}/>
+      <ImportButton onPress={onAddBtnPress}/>
     </View>
 
   )
@@ -58,8 +85,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#322A26'
   },
   fab: {
+    ...globalStyles.center,
     position: 'absolute',
-    bottom: 10,
-    right: 10
+    bottom: 15,
+    right: 15,
+    width: 60,
+    height: 60,
+    borderRadius: 50,
   }
 })
