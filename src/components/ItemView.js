@@ -1,5 +1,7 @@
-import React  from 'react'
-import { StyleSheet, Image, View } from 'react-native'
+import React, {useEffect, useState}  from 'react'
+import { StyleSheet, Image, View, Pressable } from 'react-native'
+
+import { readEncrypted } from '../utils/crypto'
 
 const Placeholder = () => (
   <View style={styles.placeholder}/>
@@ -28,15 +30,32 @@ function areEqual({ item: prevItem }, { item: newItem }) {
 }
 export const ItemViewFull = React.memo(ItemViewFull_, areEqual)
 
-export const ItemViewThumbnail = ({ item }) => {
-  const { type } = item
+const ItemViewThumbnail_ = ({ loadThumbnail, type, uuid, itemSize, onItemPress, margin }) => {
+  const [thumbnail, setThumbnail] = useState()
+  useEffect(() => {
+    let unmounted = false
+    loadThumbnail(uuid)
+      .then(data => !unmounted && setThumbnail(data))
+
+    return () => unmounted = true
+  }, [uuid])
+
   if (type.startsWith('image/')) {
-    if (item.thumbnail !== undefined && item.thumbnail !== '')
-      return <Image style={styles.thumbnail} source={{ uri: item.thumbnail }}/>
-    return <View style={[styles.thumbnail, { backgroundColor: 'gray' }]}/>
+    return (
+      <Pressable onPress={() => onItemPress(uuid)}>
+        <View style={{ width: itemSize, height: itemSize, margin }}>
+          { thumbnail && <Image style={styles.thumbnail} source={{ uri: thumbnail }}/> }
+          { !thumbnail && <View style={[styles.thumbnail, { backgroundColor: 'gray' }]}/> }
+        </View>
+      </Pressable>
+    )
   }
   else throw new Error('Unkown item type!')
 }
+
+const areThumbnailsEqual = ({ uuid: prevId }, { uuid: newId }) => prevId === newId
+
+export const ItemViewThumbnail = React.memo(ItemViewThumbnail_, areThumbnailsEqual)
 
 const styles = StyleSheet.create({
   placeholder: {

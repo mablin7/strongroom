@@ -114,20 +114,7 @@ export function useVault(initialVault: Vault = {key: '', name: '', salt: '', ite
     })
   }, [items])
 
-  const loadThumbnails = async (thumbnails: string[]) => {
-    const newItems: VaultItems = { ...items }
-
-    for (let uuid in items) {
-      if (thumbnails.includes(uuid)) {
-        if (!newItems[uuid].thumbnail)
-          newItems[uuid].thumbnail = await readEncrypted(key, name, uuid, 'thumbnail')
-      } else {
-        delete newItems[uuid].thumbnail
-      }
-    }
-
-    setItems(newItems)
-  }
+  const loadThumbnail = (uuid: string) => readEncrypted(key, name, uuid, 'thumbnail')
 
   const importFiles = async (pickedFiles: DocumentPickerResponse[]) => {
     const newItems: VaultItems = { ...items }
@@ -170,6 +157,6 @@ export function useVault(initialVault: Vault = {key: '', name: '', salt: '', ite
   }
 
   return {
-    items, importFiles, decryptItem, loadThumbnails
+    items, importFiles, decryptItem, loadThumbnail
   }
 }

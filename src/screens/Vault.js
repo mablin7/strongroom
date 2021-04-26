@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, StyleSheet, Button, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import DocumentPicker from 'react-native-document-picker'
 import { useBackHandler } from '@react-native-community/hooks'
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
@@ -36,7 +36,7 @@ function ImportButton({ onPress }) {
 }
 
 export default ({ initialVault, setShouldLockOnBg }) => {
-  const { items, decryptItem, importFiles, loadThumbnails } = useVault(initialVault)
+  const { items, decryptItem, importFiles, loadThumbnail } = useVault(initialVault)
   const itemsList = Object.keys(items).sort().map(uuid => ({ uuid, ...items[uuid] }))
 
   const setIsImporting = v => {
@@ -70,7 +70,7 @@ export default ({ initialVault, setShouldLockOnBg }) => {
     <View style={styles.container}>
       {
         viewerPage === -1
-          ? <GridView itemsList={itemsList} onItemPress={onItemPress} loadThumbnails={loadThumbnails}/>
+          ? <GridView itemsList={itemsList} onItemPress={onItemPress} loadThumbnail={loadThumbnail}/>
           : <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/>
       }
       <ImportButton onPress={onAddBtnPress}/>
