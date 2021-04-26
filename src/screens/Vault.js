@@ -36,7 +36,7 @@ function ImportButton({ onPress }) {
 }
 
 export default ({ initialVault, setShouldLockOnBg }) => {
-  const { items, decryptItem, importFiles } = useVault(initialVault)
+  const { items, decryptItem, importFiles, loadThumbnails } = useVault(initialVault)
   const itemsList = Object.keys(items).sort().map(uuid => ({ uuid, ...items[uuid] }))
 
   const setIsImporting = v => {
@@ -70,7 +70,7 @@ export default ({ initialVault, setShouldLockOnBg }) => {
     <View style={styles.container}>
       {
         viewerPage === -1
-          ? <GridView itemsList={itemsList} onItemPress={onItemPress}/>
+          ? <GridView itemsList={itemsList} onItemPress={onItemPress} loadThumbnails={loadThumbnails}/>
           : <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/>
       }
       <ImportButton onPress={onAddBtnPress}/>

@@ -100,32 +100,34 @@ export async function openVault(name: string, password: string): Promise<Vault|u
 /**
  * Hook that keeps track of the vault, decrypts files, encrypts and saves changes.
 */
-export function useVault(initialVault: Vault = {key: '', name: '', salt: '', items: {}}, maxCached=10) {
+export function useVault(initialVault: Vault = {key: '', name: '', salt: '', items: {}}, maxCached=20) {
   const { key = '', name = '' } = initialVault
   const [items, setItems] = useState(initialVault.items)
   const lastOpened: string[] = useRef([]).current
   const currentlyDecrypting: { [uuid: string]: boolean } = useRef({}).current
 
   useEffect(() => {
-    (async function() {
-      let didChange = false
-      let newItems = { ...items }
-
-      for (let uuid in items) {
-        const item = items[uuid]
-        if (item.thumbnail === '' || item.thumbnail === undefined) {
-          didChange = true
-          newItems[uuid].thumbnail = await readEncrypted(key, name, uuid, 'thumbnail')
-        }
-
-        if (!(uuid in currentlyDecrypting)) {
-          currentlyDecrypting[uuid] = false
-        }
+    Object.keys(items).forEach(uuid => {
+      if (!(uuid in currentlyDecrypting)) {
+        currentlyDecrypting[uuid] = false
       }
-
-      if (didChange) setItems(newItems)
-    })()
+    })
   }, [items])
+
+  const loadThumbnails = async (thumbnails: string[]) => {
+    const newItems: VaultItems = { ...items }
+
+    for (let uuid in items) {
+      if (thumbnails.includes(uuid)) {
+        if (!newItems[uuid].thumbnail)
+          newItems[uuid].thumbnail = await readEncrypted(key, name, uuid, 'thumbnail')
+      } else {
+        delete newItems[uuid].thumbnail
+      }
+    }
+
+    setItems(newItems)
+  }
 
   const importFiles = async (pickedFiles: DocumentPickerResponse[]) => {
     const newItems: VaultItems = { ...items }
@@ -168,6 +170,6 @@ export function useVault(initialVault: Vault = {key: '', name: '', salt: '', ite
   }
 
   return {
-    items, importFiles, decryptItem
+    items, importFiles, decryptItem, loadThumbnails
   }
 }
