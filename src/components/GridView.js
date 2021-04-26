@@ -12,13 +12,13 @@ export default ({ itemsList, minNCols=3, maxItemWidth=200, margin=2, onItemPress
 
   const timer = useRef()
   const yOffset = useRef()
-  const scrollRef = useRef()
+  const uuidList = itemsList.map(i => i.uuid)
   const onScroll = ({ nativeEvent }) => {
     yOffset.current = nativeEvent.contentOffset.y
+
     if (timer.current) return
     timer.current = setTimeout(() => {
-      const uuidList = itemsList.map(i => i.uuid) 
-      if (uuidList.length < numVisible) return uuidList
+      if (uuidList.length < numVisible) return loadThumbnails(uuidList)
 
       const firstVisibleIdx = Math.max(0, Math.floor((nCols * (yOffset.current / itemSize)) - thumbnailsBuffer * numVisible))
       const lastVisibleIdx = Math.min(itemsList.length, Math.ceil(firstVisibleIdx + numVisible + 2 * thumbnailsBuffer * numVisible) + 1)
@@ -35,7 +35,7 @@ export default ({ itemsList, minNCols=3, maxItemWidth=200, margin=2, onItemPress
   }, [])
 
   return (
-    <ScrollView onScroll={onScroll} ref={scrollRef}>
+    <ScrollView onScroll={onScroll}>
       <View style={styles.gridContainer}>
         {itemsList.map(item => (
           <Pressable key={item.uuid} onPress={() => _onItemPress(item.uuid)}>
