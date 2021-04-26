@@ -6,20 +6,67 @@ import ImageResizer from 'react-native-image-resizer'
 
 import { deleteMediaFiles } from './utils/media-deleter'
 import { THUMBNAIL_SIZE } from './utils/constants'
-import { readVaultFile, saveVaultFile, vaultExists } from './utils/vaultFile'
-import { getKey, decrypt, encrypt, getUUID, getSalt } from './utils/crypto'
+import { vaultExists } from './utils/vaultFile'
+import { getKey, readEncrypted, writeEncrypted, getUUID, getSalt } from './utils/crypto'
+import {createItem, createVault} from './utils/vaultFile.android'
 
 // Vault type:
 // vault: {
 //   path: "",
 //   key: "",
-//   items: { [uuid]: { data: "", itemPath: "", ...metadata } },
-//   encrypted: {
-//     salt: "",
-//     dataItems: { [uuid]: {cipher, iv, hmac} },
-//     manifest: {cipher, iv, hmac} /* { [uuid]: { itemPath: "", ...metadata }  } */
-//   }
+//   items: {
+//    [uuid]: {
+//      data: "",
+//      itemPath: "",
+//      type: "",
+//      size: {},
+//      metadata: {
+//        [field]: ""
+//      }
+//    }
+//   },
+//   salt: ""
 // }
+//
+// File structure:
+// |
+// |- {vault name}
+//   |- manifest.json <cipher>
+//   |- {item uuid}
+//     |- data.json <cipher>
+//     |- thumbnail.json <cipher>
+//   ...
+//
+// manifest.json <plaintext>
+// {
+//  "{uuid}": {
+//    "itemPath": "{itemPath}",
+//    "type": "",
+//    "size": {width, height},
+//    "metadata": ["{fieldName}"]
+//  }
+// }
+//
+// <cipher> json file
+// {
+//  "cipher": "",
+//  "iv": "",
+//  "hmac": ""
+// }
+
+async function saveManifest(key, items, vaultName) {
+  const newManifest = {}
+  Object.entries(items).forEach(([uuid, item]) => {
+    newManifest[uuid] = {
+      itemPath: item.itemPath,
+      type: item.type,
+      size: item.size,
+      metadata: Object.keys(item.metadata)
+    }
+  })
+
+  await writeEncrypted(key, newManifest, vaultName, 'manifest')
+}
 
 const getImgSize = uri => new Promise(res => Image.getSize(uri, (width, height) => res({ width, height })))
 async function importDataFromFile({ name, type, uri }) {
@@ -46,85 +93,112 @@ async function importDataFromFile({ name, type, uri }) {
  * If it exists decrypts manifest and returns encrypted items
  * if not returns a new empty vault.
  */
-export async function openVault(vaultPath, password) {
-    if (await vaultExists(vaultPath)) {
-      const encrypted = await readVaultFile(vaultPath)
-      const vaultKey = await getKey(password, encrypted.salt)
-      const challengeDecrypted = await decrypt(encrypted.challenge, vaultKey)
-      if (challengeDecrypted === undefined) return
+export async function openVault(vaultName, password) {
+  const salt = getSalt()
+  const key = await getKey(password, salt)
+  if (await vaultExists(vaultName)) {
+    const manifestDecrypted = await readEncrypted(key, vaultName, 'manifest')
+    if (manifestDecrypted === undefined) return
 
-      const manifestDecrypted = await decrypt(encrypted.manifest, vaultKey)
-      const items = manifestDecrypted === undefined ? {} : JSON.parse(manifestDecrypted)
-      return {
-        path: vaultPath,
-        key: vaultKey,
-        items, encrypted
+    const items = {}
+    Object.entries(manifestDecrypted).forEach(([uuid, item]) => {
+      const metadata = {}
+      item.metadata.forEach(field => metadata[field] = '')
+      items[uuid] = {
+        itemPath: item.itemPath,
+        type: item.type,
+        size: item.size,
+        metadata 
       }
-    } else {
-      const salt = getSalt()
-      const vaultKey = await getKey(password, salt)
-      const challenge = await encrypt('test', vaultKey)
-      const encrypted = {
-        salt, dataItems: {}, manifest: {cipher: '', iv: '', hmac: ''}, challenge
-      }
-      await saveVaultFile(vaultPath, encrypted)
+    })
 
-      return {
-        path: vaultPath,
-        key: vaultKey,
-        items: {},
-        encrypted
-      }
+    return {
+      path: vaultName,
+      key, items, salt
     }
+  } else {
+    await createVault(vaultName)
+    await writeEncrypted(key, {}, vaultName, 'manifest')
+
+    return {
+      path: vaultName,
+      items: {}, key, salt
+    }
+  }
 }
 
 /**
  * Hook that keeps track of the vault, decrypts files, encrypts and saves changes.
 */
-export function useVault(initialVault={}) {
+export function useVault(initialVault={}, maxCached=10) {
   const { key, path } = initialVault
   const [items, setItems] = useState(initialVault.items)
-  const encrypted = useRef(initialVault.encrypted).current
-
+  const lastOpened = useRef([]).current
   const currentlyDecrypting = useRef({}).current
+
   useEffect(() => {
-    Object.keys(items).forEach(uuid => currentlyDecrypting[uuid] = false)
-  }, [])
+    (async function() {
+      let didChange = false
+      let newItems = { ...items }
+
+      for (let uuid in items) {
+        const item = items[uuid]
+        for (let field in item.metadata) {
+          const val = item.metadata[field]
+          if (val === '' || val === undefined) {
+            didChange = true
+            newItems[uuid].metadata[field] = await readEncrypted(key, path, uuid, field)
+          }
+        }
+
+        if (!(uuid in currentlyDecrypting)) {
+          currentlyDecrypting[uuid] = false
+        }
+      }
+
+      if (didChange) setItems(newItems)
+    })()
+  }, [items])
 
   const importFiles = async pickedFiles => {
     const newItems = { ...items }
-    const newEncryptedItems = { ...encrypted.dataItems }
     for (let res of pickedFiles) {
       const newUUID = await getUUID()
-      const { data, ...metadata } = await importDataFromFile(res)
-      newItems[newUUID] = { data, itemPath: res.name, ...metadata }
+      const { data, type, size, ...metadata } = await importDataFromFile(res)
+      newItems[newUUID] = { itemPath: res.name, type, size, metadata }
 
-      const encryptedItemData = await encrypt(data, key)
-      newEncryptedItems[newUUID] = encryptedItemData
+      await createItem(path, newUUID)
+      await writeEncrypted(key, data, path, newUUID, 'data')
+      
+      for (let field in metadata) {
+        const md = metadata[field]
+        await writeEncrypted(key, md, path, newUUID, field)
+      }
     }
 
-    const newManifest = {}
-    Object.entries(newItems)
-      .forEach(([uuid, { itemPath, data, ...itemMetadata }]) => {
-        newManifest[uuid] = { itemPath, ...itemMetadata }
-      })
-
-    const newEncryptedManifest = await encrypt(JSON.stringify(newManifest), key)
-    encrypted.dataItems = newEncryptedItems
-    encrypted.manifest = newEncryptedManifest
-
-    await saveVaultFile(path, encrypted)
     await deleteMediaFiles(pickedFiles.map(({ uri }) => uri))
+    await saveManifest(key, newItems, path)
     setItems(newItems)
   }
 
   const decryptItem = async uuid => {
+    if (lastOpened.includes(uuid)) {
+      lastOpened.splice(lastOpened.indexOf(uuid), 1)
+    }
+    lastOpened.push(uuid)
+
     const { data } = items[uuid]
     if (data !== undefined || currentlyDecrypting[uuid]) return
 
     currentlyDecrypting[uuid] = true
-    const decryptedItem = await decrypt(encrypted.dataItems[uuid], key)
-    const newItems = { ...items, [uuid]: { ...items[uuid], data: decryptedItem } }
+    const decryptedData = await readEncrypted(key, path, uuid, 'data')
+    const newItems = { ...items, [uuid]: { ...items[uuid], data: decryptedData } }
+
+    if (lastOpened.length === maxCached) {
+      const toPop = lastOpened.shift()
+      delete newItems[toPop].data
+    }
+
     setItems(newItems)
     currentlyDecrypting[uuid] = false
   }
