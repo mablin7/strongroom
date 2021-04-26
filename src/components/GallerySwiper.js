@@ -17,7 +17,8 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
   const [currentItem, setCurrentItem] = useState(startIdx)
   const _onScroll = ({ nativeEvent }) => {
     const scrollX = Math.ceil(nativeEvent.contentOffset.x)
-    if (scrollX % Math.round(width) === 0) {
+    const rem = scrollX % Math.round(width)
+    if (rem <= 3 || Math.abs(rem - width) <= 3) {
       const newIdx = Math.round(scrollX/width)
       onScroll(itemsList[newIdx].uuid)
       setCurrentItem(newIdx)
