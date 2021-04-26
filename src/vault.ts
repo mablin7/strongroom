@@ -4,30 +4,15 @@ import { Image } from 'react-native'
 import RNFS from 'react-native-fs'
 import ImageResizer from 'react-native-image-resizer'
 
+import { Manifest, Vault, VaultItems } from './types'
+import { DocumentPickerResponse } from 'react-native-document-picker'
+
 import { deleteMediaFiles } from './utils/media-deleter'
 import { THUMBNAIL_SIZE } from './utils/constants'
-import { vaultExists } from './utils/vaultFile'
+import { vaultExists } from './utils/vaultFile.android'
 import { getKey, readEncrypted, writeEncrypted, getUUID, getSalt } from './utils/crypto'
 import {createItem, createVault} from './utils/vaultFile.android'
 
-// Vault type:
-// vault: {
-//   path: "",
-//   key: "",
-//   items: {
-//    [uuid]: {
-//      data: "",
-//      itemPath: "",
-//      type: "",
-//      size: {},
-//      metadata: {
-//        [field]: ""
-//      }
-//    }
-//   },
-//   salt: ""
-// }
-//
 // File structure:
 // |
 // |- {vault name}
@@ -36,40 +21,30 @@ import {createItem, createVault} from './utils/vaultFile.android'
 //     |- data.json <cipher>
 //     |- thumbnail.json <cipher>
 //   ...
-//
-// manifest.json <plaintext>
-// {
-//  "{uuid}": {
-//    "itemPath": "{itemPath}",
-//    "type": "",
-//    "size": {width, height},
-//    "metadata": ["{fieldName}"]
-//  }
-// }
-//
-// <cipher> json file
-// {
-//  "cipher": "",
-//  "iv": "",
-//  "hmac": ""
-// }
 
-async function saveManifest(key, items, vaultName) {
-  const newManifest = {}
+async function saveManifest(key: string, items: VaultItems, vaultName: string) {
+  const newManifest: Manifest = {}
   Object.entries(items).forEach(([uuid, item]) => {
     newManifest[uuid] = {
       itemPath: item.itemPath,
       type: item.type,
       size: item.size,
-      metadata: Object.keys(item.metadata)
+      thumbnail: item.thumbnail
     }
   })
 
   await writeEncrypted(key, newManifest, vaultName, 'manifest')
 }
 
-const getImgSize = uri => new Promise(res => Image.getSize(uri, (width, height) => res({ width, height })))
-async function importDataFromFile({ name, type, uri }) {
+type ImportedItem = {
+  type: string,
+  data: string,
+  thumbnail?: string,
+  size: { width: number, height: number }
+}
+
+const getImgSize = (uri: string) : Promise<ImportedItem['size']> => new Promise(res => Image.getSize(uri, (width, height) => res({ width, height })))
+async function importDataFromFile({ name, type, uri }: DocumentPickerResponse) : Promise<ImportedItem> {
   if (typeof type !== 'string') {
     if (name.endsWith('.png')) type = 'image/png'
     else if (name.endsWith('.jpg') || name.endsWith('.jpeg')) type = 'image/jpeg'
@@ -93,36 +68,31 @@ async function importDataFromFile({ name, type, uri }) {
  * If it exists decrypts manifest and returns encrypted items
  * if not returns a new empty vault.
  */
-export async function openVault(vaultName, password) {
+export async function openVault(name: string, password: string): Promise<Vault|undefined> {
   const salt = getSalt()
   const key = await getKey(password, salt)
-  if (await vaultExists(vaultName)) {
-    const manifestDecrypted = await readEncrypted(key, vaultName, 'manifest')
+  if (await vaultExists(name)) {
+    const manifestDecrypted: Manifest = await readEncrypted(key, name, 'manifest')
     if (manifestDecrypted === undefined) return
 
-    const items = {}
+    const items: VaultItems = {}
     Object.entries(manifestDecrypted).forEach(([uuid, item]) => {
-      const metadata = {}
-      item.metadata.forEach(field => metadata[field] = '')
       items[uuid] = {
         itemPath: item.itemPath,
         type: item.type,
         size: item.size,
-        metadata 
       }
     })
 
     return {
-      path: vaultName,
-      key, items, salt
+      name, key, items, salt
     }
   } else {
-    await createVault(vaultName)
-    await writeEncrypted(key, {}, vaultName, 'manifest')
+    await createVault(name)
+    await writeEncrypted(key, {}, name, 'manifest')
 
     return {
-      path: vaultName,
-      items: {}, key, salt
+      name, items: {}, key, salt
     }
   }
 }
@@ -130,11 +100,11 @@ export async function openVault(vaultName, password) {
 /**
  * Hook that keeps track of the vault, decrypts files, encrypts and saves changes.
 */
-export function useVault(initialVault={}, maxCached=10) {
-  const { key, path } = initialVault
+export function useVault(initialVault: Vault = {key: '', name: '', salt: '', items: {}}, maxCached=10) {
+  const { key = '', name = '' } = initialVault
   const [items, setItems] = useState(initialVault.items)
-  const lastOpened = useRef([]).current
-  const currentlyDecrypting = useRef({}).current
+  const lastOpened: string[] = useRef([]).current
+  const currentlyDecrypting: { [uuid: string]: boolean } = useRef({}).current
 
   useEffect(() => {
     (async function() {
@@ -143,12 +113,9 @@ export function useVault(initialVault={}, maxCached=10) {
 
       for (let uuid in items) {
         const item = items[uuid]
-        for (let field in item.metadata) {
-          const val = item.metadata[field]
-          if (val === '' || val === undefined) {
-            didChange = true
-            newItems[uuid].metadata[field] = await readEncrypted(key, path, uuid, field)
-          }
+        if (item.thumbnail === '' || item.thumbnail === undefined) {
+          didChange = true
+          newItems[uuid].thumbnail = await readEncrypted(key, name, uuid, 'thumbnail')
         }
 
         if (!(uuid in currentlyDecrypting)) {
@@ -160,28 +127,25 @@ export function useVault(initialVault={}, maxCached=10) {
     })()
   }, [items])
 
-  const importFiles = async pickedFiles => {
-    const newItems = { ...items }
+  const importFiles = async (pickedFiles: DocumentPickerResponse[]) => {
+    const newItems: VaultItems = { ...items }
     for (let res of pickedFiles) {
       const newUUID = await getUUID()
-      const { data, type, size, ...metadata } = await importDataFromFile(res)
-      newItems[newUUID] = { itemPath: res.name, type, size, metadata }
+      const { data, ...metadata } = await importDataFromFile(res)
+      newItems[newUUID] = { itemPath: res.name, ...metadata }
 
-      await createItem(path, newUUID)
-      await writeEncrypted(key, data, path, newUUID, 'data')
-      
-      for (let field in metadata) {
-        const md = metadata[field]
-        await writeEncrypted(key, md, path, newUUID, field)
-      }
+      await createItem(name, newUUID)
+      await writeEncrypted(key, data, name, newUUID, 'data')
+      if (metadata.thumbnail)
+        await writeEncrypted(key, metadata.thumbnail, name, newUUID, 'thumbnail')
     }
 
     await deleteMediaFiles(pickedFiles.map(({ uri }) => uri))
-    await saveManifest(key, newItems, path)
+    await saveManifest(key, newItems, name)
     setItems(newItems)
   }
 
-  const decryptItem = async uuid => {
+  const decryptItem = async (uuid: string) => {
     if (lastOpened.includes(uuid)) {
       lastOpened.splice(lastOpened.indexOf(uuid), 1)
     }
@@ -191,12 +155,12 @@ export function useVault(initialVault={}, maxCached=10) {
     if (data !== undefined || currentlyDecrypting[uuid]) return
 
     currentlyDecrypting[uuid] = true
-    const decryptedData = await readEncrypted(key, path, uuid, 'data')
+    const decryptedData = await readEncrypted(key, name, uuid, 'data')
     const newItems = { ...items, [uuid]: { ...items[uuid], data: decryptedData } }
 
     if (lastOpened.length === maxCached) {
       const toPop = lastOpened.shift()
-      delete newItems[toPop].data
+      if (toPop) delete newItems[toPop].data
     }
 
     setItems(newItems)
