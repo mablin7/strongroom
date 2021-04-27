@@ -28,8 +28,7 @@ async function saveManifest(key: string, items: VaultItems, vaultName: string) {
     newManifest[uuid] = {
       itemPath: item.itemPath,
       type: item.type,
-      size: item.size,
-      thumbnail: item.thumbnail
+      size: item.size
     }
   })
 
@@ -117,13 +116,13 @@ export function useVault(initialVault: Vault = {key: '', name: '', salt: '', ite
     const newItems: VaultItems = { ...items }
     for (let res of pickedFiles) {
       const newUUID = await getUUID()
-      const { data, ...metadata } = await importDataFromFile(res)
+      const { data, thumbnail, ...metadata } = await importDataFromFile(res)
       newItems[newUUID] = { itemPath: res.name, ...metadata }
 
       await createItem(name, newUUID)
       await writeEncrypted(key, data, name, newUUID, 'data')
-      if (metadata.thumbnail)
-        await writeEncrypted(key, metadata.thumbnail, name, newUUID, 'thumbnail')
+      if (thumbnail)
+        await writeEncrypted(key, thumbnail, name, newUUID, 'thumbnail')
     }
 
     await deleteMediaFiles(pickedFiles.map(({ uri }) => uri))

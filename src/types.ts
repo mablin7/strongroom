@@ -5,16 +5,13 @@ export type ManifestItem = {
     width: number,
     height: number
   },
-  thumbnail?: string,
 }
 
 export type Manifest = {
   [uuid: string]: ManifestItem
 }
 
-export type VaultItem = ManifestItem & {
-  data?: string
-}
+export type VaultItem = ManifestItem 
 
 export type VaultItems = {
   [uuid: string]: VaultItem
