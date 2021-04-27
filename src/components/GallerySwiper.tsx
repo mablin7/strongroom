@@ -1,32 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native'
-import { PinchGestureHandler, State, ScrollView } from 'react-native-gesture-handler'
+import React, { useState, useRef, useCallback } from 'react'
+import { StyleSheet, Animated, Easing, useWindowDimensions, FlatList as RNFlatList, ViewToken } from 'react-native'
+import { PinchGestureHandler, State, FlatList, PinchGestureHandlerGestureEvent } from 'react-native-gesture-handler'
 
 import { ItemViewFull } from './ItemView'
+
+import { VaultItem } from '../types'
 
 const ZoomState = { OFF: 0, PINCHING: 1, ZOOMED: 2 }
 const animConfig = { duration: 200, easing: Easing.linear, useNativeDriver: true }
 
-export default ({ itemsList, startIdx=0, onScroll }) => {
+type ListItem = VaultItem & { uuid: string }
+type GallerySwiperProps = {
+  itemsList: ListItem[],
+  loadItem: (uuid: string) => Promise<string>,
+  startIdx: number
+}
+
+export default ({ itemsList, loadItem, startIdx=0 }: GallerySwiperProps): JSX.Element => {
   const {width, height} = useWindowDimensions()
   const [zoom, setZoom] = useState({ state: ZoomState.OFF, value: 1 })
 
-  const scrollRef = useRef()
+  const scrollRef= useRef<RNFlatList<ListItem>|null>(null)
   const pinchRef = useRef()
 
   const [currentItem, setCurrentItem] = useState(startIdx)
-  const _onScroll = ({ nativeEvent }) => {
-    const scrollX = Math.ceil(nativeEvent.contentOffset.x)
-    const rem = scrollX % Math.round(width)
-    if (rem <= 3 || Math.abs(rem - width) <= 3) {
-      const newIdx = Math.round(scrollX/width)
-      onScroll(itemsList[newIdx].uuid)
-      setCurrentItem(newIdx)
-    }
-  }
-  useEffect(() => {
-    // If starting at 0 _onScroll event is not called, so the image doesn't get decrypted
-    if (startIdx === 0) onScroll(itemsList[0].uuid)
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const [ viewableItem ] = viewableItems
+    if (viewableItem && viewableItem.index !== null) setCurrentItem(viewableItem.index)
   }, [])
 
   const pinchScale = useRef(new Animated.Value(1)).current
@@ -57,14 +57,14 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
   }).current
 
   const resetScale = () => {
-    Animated.timing(previousScale, { toValue: 1, ...animConfig }).start()
+    Animated.timing(previousScale, { toValue: 1, ...animConfig }).start(() => previousScale.setValue(1))
     Animated.timing(pinchFocalXY, { toValue: { x: 0, y: 0 }, ...animConfig }).start()
     setZoom({ state: ZoomState.OFF, value: 1 })
   }
 
-  const onPinchHandlerStateChange = ({ nativeEvent: { state, focalX, focalY, scale: lastPinchScale } }) => {
+  const onPinchHandlerStateChange = ({ nativeEvent: { state, focalX, focalY, scale: lastPinchScale } }: PinchGestureHandlerGestureEvent) => {
     if (state === State.ACTIVE) {
-      scrollRef.current.scrollTo({ x: currentItem * width, animated: false })
+      if (scrollRef.current) scrollRef.current.scrollToIndex({ index: currentItem, animated: false })
       Animated.timing(pinchFocalXY, { toValue: { x: width/2-focalX, y: height/2-focalY }, ...animConfig }).start()
       setZoom({ state: ZoomState.PINCHING, value: zoom.value })
     }
@@ -78,14 +78,15 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
     }
   }
 
-  const animatedTransform = {
+  const animatedTransform = useRef({
     transform: [
       { translateX: translateXY.x }, 
       { translateY: translateXY.y }, 
       { scale: actualScale }, 
       { perspective: 1000 }
     ] 
-  }
+  }).current
+  
   return (
     <PinchGestureHandler
       ref={pinchRef}
@@ -94,33 +95,31 @@ export default ({ itemsList, startIdx=0, onScroll }) => {
       onHandlerStateChange={onPinchHandlerStateChange}
     >
       <Animated.View>
-        <ScrollView
+        <FlatList
           ref={scrollRef}
           scrollEnabled={zoom.state ===  ZoomState.OFF}
           contentOffset={{ x: startIdx*width, y: 0 }}
           snapToInterval={width}
+          /*@ts-ignore */
           waitFor={pinchRef}
-          onScroll={_onScroll}
           horizontal
           disableIntervalMomentum
-        >
-          <Animated.View style={{ width: width*itemsList.length, height, flexDirection: 'row' }}>
-            {itemsList.map((item, idx) => (
-              <View key={item.uuid}>
-                {
-                  currentItem === idx ?
-                    <Animated.View style={[styles.viewImage, { width }, animatedTransform]}>
-                      <ItemViewFull item={item} width={width} height={height}/>
-                    </Animated.View>
-                    :
-                    <View style={[styles.viewImage, { width }]}>
-                      <ItemViewFull item={item} width={width} height={height}/>
-                    </View>
-                }
-              </View>
-            ))}
-          </Animated.View>
-        </ScrollView>
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{
+            itemVisiblePercentThreshold: 90
+          }}
+
+          style={{ width, height }}
+
+          data={itemsList}
+          keyExtractor={({ uuid }: ListItem) => uuid}
+          extraData={currentItem}
+          renderItem={({ item, index }) => (
+            <Animated.View style={[styles.viewImage, { width }, currentItem === index ? animatedTransform : {}]}>
+              <ItemViewFull item={item} loadItem={loadItem} width={width} height={height} distanceFromVisible={Math.abs(currentItem - index)}/>
+            </Animated.View>
+          )}
+        />
       </Animated.View>
     </PinchGestureHandler>
   )

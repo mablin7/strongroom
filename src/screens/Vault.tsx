@@ -11,8 +11,18 @@ import globalStyles from '../utils/styles'
 
 import GridView from '../components/GridView'
 import GallerySwiper from '../components/GallerySwiper'
+import {Vault} from '../types'
 
-function ImportButton({ onPress }) {
+type ImportButtonProps = {
+  onPress: () => void
+}
+
+type VaultScreenProps = {
+  initialVault: Vault,
+  setShouldLockOnBg: (shouldLock: boolean) => void
+}
+
+function ImportButton({ onPress }: ImportButtonProps) {
   return (
     <Pressable
       style={({ pressed }) => [
@@ -35,19 +45,19 @@ function ImportButton({ onPress }) {
   )
 }
 
-export default ({ initialVault, setShouldLockOnBg }) => {
-  const { items, decryptItem, importFiles, loadThumbnail } = useVault(initialVault)
+export default ({ initialVault, setShouldLockOnBg }: VaultScreenProps) => {
+  const { items, loadItem, importFiles, loadThumbnail } = useVault(initialVault)
   const itemsList = Object.keys(items).sort().map(uuid => ({ uuid, ...items[uuid] }))
 
-  const setIsImporting = v => {
-    if (v) setShouldLockOnBg(false)
+  const setIsImporting = (isImporting: boolean) => {
+    if (isImporting) setShouldLockOnBg(false)
     else setTimeout(() => setShouldLockOnBg(true), 100)
   }
   const onAddBtnPress = async () => {
     setIsImporting(true)
     try {
       const results = await DocumentPicker.pickMultiple({
-        type: DocumentPicker.types.images
+        type: [DocumentPicker.types.images]
       })
       await importFiles(results)
       setIsImporting(false)
@@ -58,7 +68,7 @@ export default ({ initialVault, setShouldLockOnBg }) => {
   }
 
   const [viewerPage, openViewerAt] = useState(-1)
-  const onItemPress = pressedUUID => openViewerAt(itemsList.findIndex(({uuid}) => pressedUUID === uuid))
+  const onItemPress = (pressedUUID: string) => openViewerAt(itemsList.findIndex(({uuid}) => pressedUUID === uuid))
   useBackHandler(() => {
     if (viewerPage !== -1) {
       openViewerAt(-1)
@@ -71,7 +81,7 @@ export default ({ initialVault, setShouldLockOnBg }) => {
       {
         viewerPage === -1
           ? <GridView itemsList={itemsList} onItemPress={onItemPress} loadThumbnail={loadThumbnail}/>
-          : <GallerySwiper itemsList={itemsList} onScroll={decryptItem} startIdx={viewerPage}/>
+          : <GallerySwiper itemsList={itemsList} loadItem={loadItem} startIdx={viewerPage}/>
       }
       <ImportButton onPress={onAddBtnPress}/>
     </View>

@@ -1,15 +1,22 @@
 import React, {useEffect, useState}  from 'react'
 import { StyleSheet, Image, View, Pressable } from 'react-native'
 
-import { readEncrypted } from '../utils/crypto'
-
-const Placeholder = () => (
-  <View style={styles.placeholder}/>
+const Placeholder = (size = { width: '100%', height: '100%' }) => (
+  <View style={[styles.placeholder, size]}/>
 )
 
-function ItemViewFull_({ item: { type, data, size }, width: viewWidth, height: viewHeight }) {
-  if (data === undefined) return <Placeholder/>
-  else if (type.startsWith('image/')) {
+export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: viewWidth, height: viewHeight, distanceFromVisible }) {
+  const [data, setData] = useState()
+  useEffect(() => {
+    let unmounted = false
+    if (distanceFromVisible === 0)
+      loadItem(uuid)
+        .then(newData => !unmounted && newData && setData(newData))
+
+    return () => unmounted = true
+  }, [uuid, distanceFromVisible])
+
+  if (type.startsWith('image/')) {
     const { width, height } = size
     const containedDims = { width: 0, height: 0 }
     if (width !== 0 && height !== 0) {
@@ -21,14 +28,12 @@ function ItemViewFull_({ item: { type, data, size }, width: viewWidth, height: v
         containedDims.width = (viewHeight / height) * width
       }
     }
-    return <Image style={containedDims} source={{ uri: data }}/>
+
+    if (data === undefined) return <Placeholder size={containedDims}/>
+    else return <Image style={containedDims} source={{ uri: data }}/>
   }
   throw new Error('Unkown item type ' + type + '!')
 }
-function areEqual({ item: prevItem }, { item: newItem }) {
-  return prevItem.type === newItem.type && prevItem.data === newItem.data
-}
-export const ItemViewFull = React.memo(ItemViewFull_, areEqual)
 
 const ItemViewThumbnail_ = ({ loadThumbnail, type, uuid, itemSize, onItemPress, margin }) => {
   const [thumbnail, setThumbnail] = useState()

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Image } from 'react-native'
 
 import RNFS from 'react-native-fs'
@@ -97,22 +97,19 @@ export async function openVault(name: string, password: string): Promise<Vault|u
   }
 }
 
+type CacheItem = {
+  uuid: string,
+  data: string
+}
+
 /**
  * Hook that keeps track of the vault, decrypts files, encrypts and saves changes.
 */
-export function useVault(initialVault: Vault = {key: '', name: '', salt: '', items: {}}, maxCached=20) {
+export function useVault(initialVault: Vault = {key: '', name: '', salt: '', items: {}}, maxCached=10) {
   const { key = '', name = '' } = initialVault
   const [items, setItems] = useState(initialVault.items)
-  const lastOpened: string[] = useRef([]).current
   const currentlyDecrypting: { [uuid: string]: boolean } = useRef({}).current
-
-  useEffect(() => {
-    Object.keys(items).forEach(uuid => {
-      if (!(uuid in currentlyDecrypting)) {
-        currentlyDecrypting[uuid] = false
-      }
-    })
-  }, [items])
+  const lastOpened = useRef<CacheItem[]>([]).current
 
   const loadThumbnail = (uuid: string) => readEncrypted(key, name, uuid, 'thumbnail')
 
@@ -134,29 +131,33 @@ export function useVault(initialVault: Vault = {key: '', name: '', salt: '', ite
     setItems(newItems)
   }
 
-  const decryptItem = async (uuid: string) => {
-    if (lastOpened.includes(uuid)) {
-      lastOpened.splice(lastOpened.indexOf(uuid), 1)
+  const loadItem = async (uuid: string): Promise<string|undefined> => {
+    const cacheIdx = lastOpened.findIndex(item => item.uuid === uuid)
+    if (cacheIdx !== -1) {
+      const cacheItem = lastOpened[cacheIdx]
+      lastOpened.splice(cacheIdx, 1)
+      lastOpened.push(cacheItem)
+      return cacheItem.data
     }
-    lastOpened.push(uuid)
 
-    const { data } = items[uuid]
-    if (data !== undefined || currentlyDecrypting[uuid]) return
+    if (currentlyDecrypting[uuid]) return
 
     currentlyDecrypting[uuid] = true
-    const decryptedData = await readEncrypted(key, name, uuid, 'data')
-    const newItems = { ...items, [uuid]: { ...items[uuid], data: decryptedData } }
+    const data = await readEncrypted(key, name, uuid, 'data')
 
-    if (lastOpened.length === maxCached) {
-      const toPop = lastOpened.shift()
-      if (toPop) delete newItems[toPop].data
+    if (lastOpened.length >= maxCached) {
+      lastOpened.shift()
     }
+    lastOpened.push({
+      uuid, data
+    })
 
-    setItems(newItems)
     currentlyDecrypting[uuid] = false
+
+    return data
   }
 
   return {
-    items, importFiles, decryptItem, loadThumbnail
+    items, importFiles, loadItem, loadThumbnail
   }
 }
