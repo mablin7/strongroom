@@ -20,26 +20,14 @@ export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: view
     const { width, height } = size
     const containedDims = { width: 0, height: 0 }
     if (width !== 0 && height !== 0) {
-      if (width > height) {
-        let scale = viewWidth / width
-        if (scale * height > viewHeight) {
-          scale = viewHeight / height
-          containedDims.height = viewHeight
-          containedDims.width = scale * width
-        } else {
-          containedDims.width = viewWidth
-          containedDims.height = scale * height
-        }
+      let scale = viewWidth / width
+      if (scale * height > viewHeight) {
+        scale = viewHeight / height
+        containedDims.height = viewHeight
+        containedDims.width = scale * width
       } else {
-        let scale = viewHeight / height
-        if (scale * width > viewWidth) {
-          scale = viewWidth / width
-          containedDims.height = viewHeight
-          containedDims.width = scale * width
-        } else {
-          containedDims.height = viewHeight
-          containedDims.width = scale * width
-        }
+        containedDims.width = viewWidth
+        containedDims.height = scale * height
       }
     }
 
