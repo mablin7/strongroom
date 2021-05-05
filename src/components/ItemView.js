@@ -1,5 +1,6 @@
 import React, {useEffect, useState}  from 'react'
 import { StyleSheet, Image, View, Pressable } from 'react-native'
+import {getContainedDims} from '../utils/images'
 
 const Placeholder = (size = { width: '100%', height: '100%' }) => (
   <View style={[styles.placeholder, size]}/>
@@ -18,19 +19,7 @@ export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: view
 
   if (type.startsWith('image/')) {
     const { width, height } = size
-    const containedDims = { width: 0, height: 0 }
-    if (width !== 0 && height !== 0) {
-      let scale = viewWidth / width
-      if (scale * height > viewHeight) {
-        scale = viewHeight / height
-        containedDims.height = viewHeight
-        containedDims.width = scale * width
-      } else {
-        containedDims.width = viewWidth
-        containedDims.height = scale * height
-      }
-    }
-
+    const containedDims = getContainedDims(width, height, viewWidth, viewHeight)
     if (data === undefined) return <Placeholder size={containedDims}/>
     else return <Image style={containedDims} source={{ uri: data }}/>
   }
