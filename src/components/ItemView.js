@@ -1,11 +1,12 @@
-import React, {useEffect, useState}  from 'react'
+import React, {useEffect, useRef, useState}  from 'react'
 import { StyleSheet, Image, View, Pressable } from 'react-native'
+import ImageZoom from 'react-native-image-pan-zoom'
 
 const Placeholder = (size = { width: '100%', height: '100%' }) => (
   <View style={[styles.placeholder, size]}/>
 )
 
-export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: viewWidth, height: viewHeight, distanceFromVisible }) {
+export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: viewWidth, height: viewHeight, distanceFromVisible, onZoom }) {
   const [data, setData] = useState()
   useEffect(() => {
     let unmounted = false
@@ -15,6 +16,8 @@ export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: view
 
     return () => unmounted = true
   }, [uuid, distanceFromVisible])
+
+  const zoomed = useRef(false)
 
   if (type.startsWith('image/')) {
     const { width, height } = size
@@ -31,8 +34,28 @@ export function ItemViewFull({ item: { type, uuid, size }, loadItem, width: view
       }
     }
 
-    if (data === undefined) return <Placeholder size={containedDims}/>
-    else return <Image style={containedDims} source={{ uri: data }}/>
+    return (
+      <View style={{ width: viewWidth, height: viewHeight }}>
+        {
+          data === undefined
+            ? <Placeholder size={containedDims}/>
+            : (
+              <ImageZoom
+                cropWidth={viewWidth}
+                cropHeight={viewHeight}
+                imageWidth={containedDims.width}
+                imageHeight={containedDims.height}
+                onMove={({ scale }) => onZoom(zoomed.current = scale !== 1)}
+                onMoveShouldSetPanResponder={() => false}
+                onStartShouldSetPanResponder={(_, gesture) => gesture.numberActiveTouches > 1 || !!zoomed.current}
+                onPanResponderTerminationRequest={() => true}
+              >
+                <Image style={containedDims} source={{ uri: data }}/>
+              </ImageZoom>
+            )
+        }
+      </View>
+    )
   }
   throw new Error('Unkown item type ' + type + '!')
 }
